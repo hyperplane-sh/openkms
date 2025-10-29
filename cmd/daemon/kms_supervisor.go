@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// kmsSupervisor - supervises internal KMS processes.
 type kmsSupervisor struct {
 	Supervisor
 	waitGroup sync.WaitGroup
@@ -18,33 +19,23 @@ type kmsSupervisor struct {
 func (kA kmsSupervisor) start() {
 	defer daemon.waitGroup.Done()
 
+	// Populate basic fields.
+	//
 	daemon.kmsSupervisor.ctx, daemon.kmsSupervisor.cancel = context.WithCancel(context.Background())
 	daemon.kmsSupervisor.waitGroup = sync.WaitGroup{}
 
+	// Enter KMS supervisor main loop.
+	//
 	daemon.kmsSupervisor.waitGroup.Add(1)
-	go func() {
-		defer daemon.kmsSupervisor.waitGroup.Done()
-		for {
-			select {
-			case <-daemon.kmsSupervisor.ctx.Done():
-				fmt.Println("KMS API stopped")
-				return
-			default:
-				time.Sleep(1 * time.Second)
-			}
-		}
-	}()
+	go kmsSupervisorMain()
 
-	for {
-		select {
-		case <-daemon.ctx.Done():
-			fmt.Println("KMS Supervisor stopping..")
-			daemon.kmsSupervisor.stop()
-			daemon.kmsSupervisor.waitGroup.Wait()
-			fmt.Println("KMS Supervisor stopped")
-			return
-		}
-	}
+	// When the root context is done, stop the KMS supervisor.
+	//
+	<-daemon.ctx.Done()
+	fmt.Println("KMS Supervisor stopping..")
+	daemon.kmsSupervisor.stop()
+	daemon.kmsSupervisor.waitGroup.Wait()
+	fmt.Println("KMS Supervisor stopped")
 }
 
 // stop - stops the KMS API by cancelling its context.
@@ -61,4 +52,13 @@ func (kA kmsSupervisor) restart() {
 
 	daemon.waitGroup.Add(1)
 	go daemon.kmsSupervisor.start()
+}
+
+// kmsSupervisorMain - main function for the KMS daemon's internal process.
+func kmsSupervisorMain() {
+	defer daemon.kmsSupervisor.waitGroup.Done()
+
+	<-daemon.kmsSupervisor.ctx.Done()
+	fmt.Println("KMS API stopped")
+	return
 }

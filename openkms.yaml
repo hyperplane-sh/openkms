@@ -1,2 +1,8 @@
 CLI:
   enabled: true
+Auditing:
+  enabled: true
+  type: file
+  storage:
+    directory: /etc/hyperplane/openkms/logs
+KMS:
