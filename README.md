@@ -14,10 +14,15 @@ Getting started with OpenKMS is straightforward. You can deploy OpenKMS using Do
 `docker-compose.yml`.
 
 ```yaml
+volumes:
+  openkms-daemon-data:
+
 services:
   daemon:
     image: ghcr.io/hyperplane-sh/openkms:daemon-0.0.1
     container_name: openkms-daemon
+    volumes:
+      - openkms-daemon-data:/etc/hyperplane/openkms
   cli:
     image: ghcr.io/hyperplane-sh/openkms:cli-0.0.1
     container_name: openkms-cli
