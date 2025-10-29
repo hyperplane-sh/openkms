@@ -32,10 +32,10 @@ jobs:
           username: ${{ secrets.GH_USERNAME }}
           password: ${{ secrets.CR_PAT }}
       - name: Build OpenKMS CLI
-        run: docker build . --file .docker/cli/Dockerfile --tag ghcr.io/hyperplane-sh/open-kms:cli-0.0.1
+        run: docker build . --file .docker/cli/Dockerfile --tag ghcr.io/hyperplane-sh/openkms:cli-0.0.1
       - name: Build OpenKMS Daemon
-        run: docker build . --file .docker/daemon/Dockerfile --tag ghcr.io/hyperplane-sh/open-kms:daemon-0.0.1
+        run: docker build . --file .docker/daemon/Dockerfile --tag ghcr.io/hyperplane-sh/openkms:daemon-0.0.1
       - name: Push OpenKMS CLI
-        run: docker push ghcr.io/hyperplane-sh/open-kms:cli-0.0.1
+        run: docker push ghcr.io/hyperplane-sh/openkms:cli-0.0.1
       - name: Push OpenKMS Daemon
-        run: docker push ghcr.io/hyperplane-sh/open-kms:daemon-0.0.1
+        run: docker push ghcr.io/hyperplane-sh/openkms:daemon-0.0.1
