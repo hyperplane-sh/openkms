@@ -232,3 +232,19 @@ func TestEventToString(t *testing.T) {
 		t.Errorf("Expected ToString output to be %s, got %s", expectedPrefix, actual)
 	}
 }
+
+func TestEvent_ToJSON(t *testing.T) {
+	event := audit.NewEvent(
+		audit.LEVEL_INFO,
+		"TestGroup",
+		audit.TOPIC_LIFECYCLE,
+		"This is a test event",
+		map[string]string{"key1": "value1"},
+	)
+
+	expectedJSON := `{"timestamp":"` + event.Timestamp.Format(time.RFC3339Nano) + `","level":"INFO","group":"TestGroup","topic":"LIFECYCLE","message":"This is a test event","labels":{"key1":"value1"}}`
+	actualJSON := event.ToJSON()
+	if actualJSON != expectedJSON {
+		t.Errorf("Expected ToJSON output to be %s, got %s", expectedJSON, actualJSON)
+	}
+}
