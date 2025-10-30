@@ -21,6 +21,10 @@ var (
 	openKMSConfigurationPath = getEnv("OPENKMS_CONFIG_PATH", "/etc/hyperplane/openkms/configs/openkms.yaml")
 )
 
+const (
+	DAEMON_AUDIT_GROUP = "DAEMON"
+)
+
 type Daemon struct {
 	configuration     DaemonConfiguration
 	configurationLock sync.RWMutex // protects access to the configuration when loading or reloading.
@@ -117,7 +121,7 @@ func main() {
 
 	daemon.auditor.RecordEvent(audit.NewEvent(
 		audit.LEVEL_INFO,
-		"DAEMON",
+		DAEMON_AUDIT_GROUP,
 		audit.TOPIC_LIFECYCLE,
 		"OpenKMS daemon is starting up",
 		map[string]string{},
@@ -136,6 +140,14 @@ func main() {
 		daemon.cliAPISupervisor = supervisors.CliAPISupervisorNew(daemon.ctx, &daemon.waitGroup, daemon.auditor)
 		go daemon.cliAPISupervisor.Start()
 	}
+
+	daemon.auditor.RecordEvent(audit.NewEvent(
+		audit.LEVEL_INFO,
+		DAEMON_AUDIT_GROUP,
+		audit.TOPIC_LIFECYCLE,
+		"OpenKMS daemon started successfully",
+		map[string]string{},
+	))
 
 	// Wait for all goroutines to finish.
 	//
