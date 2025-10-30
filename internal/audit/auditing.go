@@ -8,11 +8,17 @@ import (
 
 const (
 	TYPE_FILE = "file"
+
+	LEVEL_INFO  = "INFO"
+	LEVEL_WARN  = "WARN"
+	LEVEL_ERROR = "ERROR"
+
+	TOPIC_LIFECYCLE = "LIFECYCLE"
 )
 
 type Auditor interface {
 	// RecordEvent - records an auditing event.
-	RecordEvent(event string) error
+	RecordEvent(event Event) error
 	// Persist - persists any buffered events to the storage.
 	Persist() error
 	// Close - closes the auditor and releases any resources.
@@ -41,7 +47,7 @@ func NewEvent(level, group, topic, message string, labels map[string]string) Eve
 
 // ToString - converts the event to a string representation.
 func (e Event) ToString() string {
-	return fmt.Sprintf("[%s] [%s] [%s] %s Labels: %v", e.Timestamp.Format(time.RFC3339), e.Level, e.Topic, e.Message, e.Labels)
+	return fmt.Sprintf("[%s] [%s] [%s] [%s] %s Labels: %v", e.Timestamp.Format(time.RFC3339), e.Level, e.Group, e.Topic, e.Message, e.Labels)
 }
 
 // ToJSON - converts the event to a JSON representation.

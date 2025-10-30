@@ -2,9 +2,14 @@ package supervisors
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
+
+	"github.com/hyperplane-sh/openkms/internal/audit"
+)
+
+const (
+	KMS_SUPERVISOR_AUDIT_GROUP = "KMS-SUPERVISOR"
 )
 
 // KmsSupervisor - supervises internal KMS processes.
@@ -16,6 +21,10 @@ type KmsSupervisor struct {
 	daemonWaitGroup *sync.WaitGroup
 	daemonCtx       context.Context
 
+	// Auditor
+	//
+	auditor audit.Auditor
+
 	// Internal context and wait group for the KMS supervisor.
 	//
 	internalWaitGroup *sync.WaitGroup
@@ -24,13 +33,14 @@ type KmsSupervisor struct {
 }
 
 // KmsSupervisorNew - constructor for KmsSupervisor.
-func KmsSupervisorNew(daemonCtx context.Context, daemonWaitGroup *sync.WaitGroup) KmsSupervisor {
+func KmsSupervisorNew(daemonCtx context.Context, daemonWaitGroup *sync.WaitGroup, auditor audit.Auditor) KmsSupervisor {
 
 	internalCtx, internalCancel := context.WithCancel(context.Background())
 
 	return KmsSupervisor{
 		daemonWaitGroup:   daemonWaitGroup,
 		daemonCtx:         daemonCtx,
+		auditor:           auditor,
 		internalWaitGroup: &sync.WaitGroup{},
 		internalCtx:       internalCtx,
 		internalCancel:    internalCancel,
@@ -41,6 +51,14 @@ func KmsSupervisorNew(daemonCtx context.Context, daemonWaitGroup *sync.WaitGroup
 func (kA KmsSupervisor) Start() {
 	defer kA.daemonWaitGroup.Done()
 
+	kA.auditor.RecordEvent(audit.NewEvent(
+		audit.LEVEL_INFO,
+		KMS_SUPERVISOR_AUDIT_GROUP,
+		audit.TOPIC_LIFECYCLE,
+		"KMS Supervisor starting",
+		map[string]string{},
+	))
+
 	// Enter KMS supervisor main loop.
 	//
 	kA.internalWaitGroup.Add(1)
@@ -49,10 +67,16 @@ func (kA KmsSupervisor) Start() {
 	// When the root context is done, stop the KMS supervisor.
 	//
 	<-kA.daemonCtx.Done()
-	fmt.Println("KMS Supervisor stopping..")
+	kA.auditor.RecordEvent(audit.NewEvent(
+		audit.LEVEL_INFO,
+		KMS_SUPERVISOR_AUDIT_GROUP,
+		audit.TOPIC_LIFECYCLE,
+		"KMS Supervisor stopping",
+		map[string]string{},
+	))
+
 	kA.Stop()
 	kA.internalWaitGroup.Wait()
-	fmt.Println("KMS Supervisor stopped")
 }
 
 // Stop - stops the KMS API by cancelling its context.
@@ -77,10 +101,8 @@ func kmsSupervisorMain(kA KmsSupervisor) {
 	for {
 		select {
 		case <-kA.internalCtx.Done():
-			fmt.Println("KMS internal process stopped")
 			return
 		default:
-			fmt.Println("KMS internal process is running")
 			time.Sleep(1 * time.Second)
 		}
 	}

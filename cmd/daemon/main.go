@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/hyperplane-sh/openkms/cmd/daemon/supervisors"
 	"github.com/hyperplane-sh/openkms/internal/audit"
@@ -85,6 +84,8 @@ func init() {
 	}
 	daemon.configurationLock.Unlock()
 
+	daemon.ctx, daemon.cancel = context.WithCancel(context.Background())
+
 	// Load auditing if enabled.
 	//
 	if daemon.configuration.Auditing.Enabled == true {
@@ -93,7 +94,7 @@ func init() {
 			slog.Error("Unsupported auditing type", "type", daemon.configuration.Auditing.Type)
 			os.Exit(1)
 		case audit.TYPE_FILE:
-			daemon.auditor = audit.NewAuditorFile(daemon.configuration.Auditing.Storage.Directory)
+			daemon.auditor = audit.NewAuditorFile(daemon.configuration.Auditing.Storage.Directory, daemon.ctx)
 		}
 	}
 
@@ -101,47 +102,38 @@ func init() {
 		daemon.waitGroup.Add(1)
 		go func() {
 			defer daemon.waitGroup.Done()
-
-			ticker := time.NewTicker(5 * time.Second)
-			defer ticker.Stop()
-
-			for {
-				select {
-				case <-ticker.C:
-					err := daemon.auditor.Persist()
-					if err != nil {
-						slog.Error("Failed to persist audit logs", "error", err)
-					}
-				case <-daemon.ctx.Done():
-					// Persist any remaining logs before exiting.
-					err := daemon.auditor.Persist()
-					if err != nil {
-						slog.Error("Failed to persist audit logs during shutdown", "error", err)
-					}
-					return
-				}
+			err = daemon.auditor.Persist()
+			if err != nil {
+				slog.Error("Failed to persist auditing events", "error", err)
+				os.Exit(1)
 			}
 		}()
 	}
-
-	daemon.ctx, daemon.cancel = context.WithCancel(context.Background())
 
 	go handleSignalTermination()
 }
 
 func main() {
 
+	daemon.auditor.RecordEvent(audit.NewEvent(
+		audit.LEVEL_INFO,
+		"DAEMON",
+		audit.TOPIC_LIFECYCLE,
+		"OpenKMS daemon is starting up",
+		map[string]string{},
+	))
+
 	// Start supervisor for KMS API.
 	//
 	daemon.waitGroup.Add(1)
-	daemon.kmsSupervisor = supervisors.KmsSupervisorNew(daemon.ctx, &daemon.waitGroup)
+	daemon.kmsSupervisor = supervisors.KmsSupervisorNew(daemon.ctx, &daemon.waitGroup, daemon.auditor)
 	go daemon.kmsSupervisor.Start()
 
 	// Enable CLI API if enabled in configuration.
 	//
 	if daemon.configuration.CLI.Enabled == true {
 		daemon.waitGroup.Add(1)
-		daemon.cliAPISupervisor = supervisors.CliAPISupervisorNew(daemon.ctx, &daemon.waitGroup)
+		daemon.cliAPISupervisor = supervisors.CliAPISupervisorNew(daemon.ctx, &daemon.waitGroup, daemon.auditor)
 		go daemon.cliAPISupervisor.Start()
 	}
 

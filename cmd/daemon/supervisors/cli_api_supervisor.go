@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/hyperplane-sh/openkms/internal/audit"
 )
 
 type CliAPISupervisor struct {
@@ -15,6 +17,10 @@ type CliAPISupervisor struct {
 	daemonWaitGroup *sync.WaitGroup
 	daemonCtx       context.Context
 
+	// Auditor
+	//
+	auditor audit.Auditor
+
 	// Internal context and wait group for the CLI API supervisor.
 	//
 	internalCtx       context.Context
@@ -23,11 +29,12 @@ type CliAPISupervisor struct {
 }
 
 // CliAPISupervisorNew - constructor for CliAPISupervisor.
-func CliAPISupervisorNew(daemonCtx context.Context, daemonWaitGroup *sync.WaitGroup) CliAPISupervisor {
+func CliAPISupervisorNew(daemonCtx context.Context, daemonWaitGroup *sync.WaitGroup, auditor audit.Auditor) CliAPISupervisor {
 	internalCtx, internalCancel := context.WithCancel(context.Background())
 	return CliAPISupervisor{
 		daemonWaitGroup:   daemonWaitGroup,
 		daemonCtx:         daemonCtx,
+		auditor:           auditor,
 		internalCtx:       internalCtx,
 		internalCancel:    internalCancel,
 		internalWaitGroup: &sync.WaitGroup{},
@@ -66,13 +73,28 @@ func (cA CliAPISupervisor) Restart() {
 // cliAPISupervisorMain - main function for the CLI API daemon's internal process.
 func cliAPISupervisorMain(cA CliAPISupervisor) {
 	defer cA.internalWaitGroup.Done()
+
+	cA.auditor.RecordEvent(audit.NewEvent(
+		audit.LEVEL_INFO,
+		"CLI-API-SUPERVISOR",
+		audit.TOPIC_LIFECYCLE,
+		"CLI API Supervisor starting",
+		map[string]string{},
+	))
+
 	for {
 		select {
 		case <-cA.internalCtx.Done():
-			fmt.Println("CLI API internal process stopped")
+			cA.auditor.RecordEvent(audit.NewEvent(
+				audit.LEVEL_INFO,
+				"CLI-API-SUPERVISOR",
+				audit.TOPIC_LIFECYCLE,
+				"CLI API Supervisor stopping",
+				map[string]string{},
+			))
+
 			return
 		default:
-			fmt.Println("CLI API internal process is running")
 			time.Sleep(1 * time.Second)
 		}
 	}
