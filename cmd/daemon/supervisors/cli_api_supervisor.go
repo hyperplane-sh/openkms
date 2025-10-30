@@ -12,8 +12,8 @@ type CliAPISupervisor struct {
 
 	// Reference to the daemon's context and wait group.
 	//
-	daemonCtx       context.Context
 	daemonWaitGroup *sync.WaitGroup
+	daemonCtx       context.Context
 
 	// Internal context and wait group for the CLI API supervisor.
 	//
