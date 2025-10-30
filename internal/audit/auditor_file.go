@@ -26,6 +26,8 @@ func NewAuditorFile(storageDirectory string, daemonCtx context.Context) *Auditor
 
 // RecordEvent - records an auditing event.
 func (aF *AuditorFile) RecordEvent(event Event) error {
+
+	// todo: fix mutex usage in recursive calls
 	aF.eventsWriteLock.Lock()
 	defer aF.eventsWriteLock.Unlock()
 
