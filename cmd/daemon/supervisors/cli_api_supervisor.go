@@ -26,8 +26,8 @@ type CliAPISupervisor struct {
 func CliAPISupervisorNew(daemonCtx context.Context, daemonWaitGroup *sync.WaitGroup) CliAPISupervisor {
 	internalCtx, internalCancel := context.WithCancel(context.Background())
 	return CliAPISupervisor{
-		daemonCtx:         daemonCtx,
 		daemonWaitGroup:   daemonWaitGroup,
+		daemonCtx:         daemonCtx,
 		internalCtx:       internalCtx,
 		internalCancel:    internalCancel,
 		internalWaitGroup: &sync.WaitGroup{},

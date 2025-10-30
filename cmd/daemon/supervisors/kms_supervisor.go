@@ -29,8 +29,8 @@ func KmsSupervisorNew(daemonCtx context.Context, daemonWaitGroup *sync.WaitGroup
 	internalCtx, internalCancel := context.WithCancel(context.Background())
 
 	return KmsSupervisor{
-		daemonCtx:         daemonCtx,
 		daemonWaitGroup:   daemonWaitGroup,
+		daemonCtx:         daemonCtx,
 		internalWaitGroup: &sync.WaitGroup{},
 		internalCtx:       internalCtx,
 		internalCancel:    internalCancel,
