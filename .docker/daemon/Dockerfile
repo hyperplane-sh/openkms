@@ -15,17 +15,15 @@ RUN addgroup -S openkms && \
 # Setup openkms directory
 #
 RUN mkdir -p /etc/hyperplane/openkms
+RUN mkdir -p /etc/hyperplane/openkms/certs
 RUN mkdir -p /etc/hyperplane/openkms/configs
 RUN mkdir -p /etc/hyperplane/openkms/data
 RUN mkdir -p /etc/hyperplane/openkms/logs
 RUN mkdir -p /etc/hyperplane/openkms/binaries
 
-# Set permissions
+# Set permissions & ownerships
 #
 RUN chmod -R 755 /etc/hyperplane/openkms
-
-# Change ownership to openkms user
-#
 RUN chown -R openkms:openkms /etc/hyperplane/openkms
 
 WORKDIR /app

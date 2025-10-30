@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hyperplane-sh/openkms/cmd/daemon/supervisors"
 	"github.com/hyperplane-sh/openkms/internal/audit"
 	"gopkg.in/yaml.v3"
 )
@@ -20,15 +21,6 @@ var (
 	}
 	openKMSConfigurationPath = getEnv("OPENKMS_CONFIG_PATH", "/etc/hyperplane/openkms/configs/openkms.yaml")
 )
-
-type Supervisor interface {
-	// start - starts the supervised service.
-	start()
-	// stop - stops the supervised service.
-	stop()
-	// restart - restarts the supervised service.
-	restart()
-}
 
 type Daemon struct {
 	configuration     DaemonConfiguration
@@ -46,8 +38,8 @@ type Daemon struct {
 
 	// Supervisors
 	//
-	cliAPISupervisor cliAPISupervisor
-	kmsSupervisor    kmsSupervisor
+	cliAPISupervisor supervisors.CliAPISupervisor
+	kmsSupervisor    supervisors.KmsSupervisor
 }
 
 func handleSignalTermination() {
@@ -57,6 +49,11 @@ func handleSignalTermination() {
 	<-signalChan
 	slog.Info("Termination signal received, shutting down...")
 	daemon.cancel()
+
+	daemon.waitGroup.Wait()
+
+	slog.Info("Shutdown complete")
+	os.Exit(0)
 }
 
 func init() {
@@ -137,13 +134,15 @@ func main() {
 	// Start supervisor for KMS API.
 	//
 	daemon.waitGroup.Add(1)
-	go daemon.kmsSupervisor.start()
+	daemon.kmsSupervisor = supervisors.KmsSupervisorNew(daemon.ctx, &daemon.waitGroup)
+	go daemon.kmsSupervisor.Start()
 
 	// Enable CLI API if enabled in configuration.
 	//
 	if daemon.configuration.CLI.Enabled == true {
 		daemon.waitGroup.Add(1)
-		go daemon.cliAPISupervisor.start()
+		daemon.cliAPISupervisor = supervisors.CliAPISupervisorNew(daemon.ctx, &daemon.waitGroup)
+		go daemon.cliAPISupervisor.Start()
 	}
 
 	// Wait for all goroutines to finish.
