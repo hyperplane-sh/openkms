@@ -41,18 +41,11 @@ func (cA CliAPISupervisor) Start() {
 	cA.internalWaitGroup.Add(1)
 	go cliAPISupervisorMain(cA)
 
-	for {
-		select {
-		case <-cA.daemonCtx.Done():
-			fmt.Println("CLI Supervisor stopping..")
-			cA.Stop()
-			cA.internalWaitGroup.Wait()
-			fmt.Println("CLI Supervisor stopped")
-			return
-		default:
-			time.Sleep(1 * time.Second)
-		}
-	}
+	<-cA.daemonCtx.Done()
+	fmt.Println("CLI Supervisor stopping..")
+	cA.Stop()
+	cA.internalWaitGroup.Wait()
+	fmt.Println("CLI Supervisor stopped")
 }
 
 // Stop - stops the CLI API by cancelling its context.
