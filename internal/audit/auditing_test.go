@@ -2,6 +2,7 @@ package audit_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hyperplane-sh/openkms/internal/audit"
 )
@@ -119,6 +120,59 @@ func TestNewEvent(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:    "Event Creation with Special Characters in Message",
+			level:   audit.LEVEL_INFO,
+			group:   "SpecialCharGroup",
+			topic:   "SPECIAL_CHAR_TOPIC",
+			message: "Event with special characters !@#$%^&*()",
+			labels:  map[string]string{"special": "chars"},
+			assertions: func(t *testing.T, event audit.Event) {
+				if event.Level != audit.LEVEL_INFO {
+					t.Errorf("Expected level %s, got %s", audit.LEVEL_INFO, event.Level)
+				}
+				if event.Group != "SpecialCharGroup" {
+					t.Errorf("Expected group %s, got %s", "SpecialCharGroup", event.Group)
+				}
+				if event.Topic != "SPECIAL_CHAR_TOPIC" {
+					t.Errorf("Expected topic %s, got %s", "SPECIAL_CHAR_TOPIC", event.Topic)
+				}
+				if event.Message != "Event with special characters !@#$%^&*()" {
+					t.Errorf("Expected message %s, got %s", "Event with special characters !@#$%^&*()", event.Message)
+				}
+				if val, ok := event.Labels["special"]; !ok || val != "chars" {
+					t.Errorf("Expected label special to be chars, got %v", event.Labels)
+				}
+			},
+		},
+		{
+			name:    "Event Creation with Trash Labels",
+			level:   audit.LEVEL_INFO,
+			group:   "TrashLabelGroup",
+			topic:   "TRASH_LABEL_TOPIC",
+			message: "Event with trash labels",
+			labels:  map[string]string{"": "", "   ": "   "},
+			assertions: func(t *testing.T, event audit.Event) {
+				if event.Level != audit.LEVEL_INFO {
+					t.Errorf("Expected level %s, got %s", audit.LEVEL_INFO, event.Level)
+				}
+				if event.Group != "TrashLabelGroup" {
+					t.Errorf("Expected group %s, got %s", "TrashLabelGroup", event.Group)
+				}
+				if event.Topic != "TRASH_LABEL_TOPIC" {
+					t.Errorf("Expected topic %s, got %s", "TRASH_LABEL_TOPIC", event.Topic)
+				}
+				if event.Message != "Event with trash labels" {
+					t.Errorf("Expected message %s, got %s", "Event with trash labels", event.Message)
+				}
+				if val, ok := event.Labels[""]; !ok || val != "" {
+					t.Errorf("Expected label '' to be '', got %v", event.Labels)
+				}
+				if val, ok := event.Labels["   "]; !ok || val != "   " {
+					t.Errorf("Expected label '   ' to be '   ', got %v", event.Labels)
+				}
+			},
+		},
 	}
 
 	for _, scenario := range scenarios {
@@ -126,5 +180,55 @@ func TestNewEvent(t *testing.T) {
 			event := audit.NewEvent(scenario.level, scenario.group, scenario.topic, scenario.message, scenario.labels)
 			scenario.assertions(t, event)
 		})
+	}
+}
+
+func TestEventToString(t *testing.T) {
+	// Test with labels
+	//
+	event := audit.NewEvent(
+		audit.LEVEL_INFO,
+		"TestGroup",
+		audit.TOPIC_LIFECYCLE,
+		"This is a test event",
+		map[string]string{"key1": "value1"},
+	)
+
+	expectedPrefix := "[" + event.Timestamp.Format(time.RFC3339) + "] [INFO] [TestGroup] [LIFECYCLE] This is a test event Labels: map[key1:value1]"
+	actual := event.ToString()
+	if actual != expectedPrefix {
+		t.Errorf("Expected ToString output to be %s, got %s", expectedPrefix, actual)
+	}
+
+	// Test without labels
+	//
+	eventWithoutLabels := audit.NewEvent(
+		audit.LEVEL_WARN,
+		"AnotherGroup",
+		"CUSTOM_TOPIC",
+		"Warning event",
+		nil,
+	)
+
+	expectedPrefix = "[" + eventWithoutLabels.Timestamp.Format(time.RFC3339) + "] [WARN] [AnotherGroup] [CUSTOM_TOPIC] Warning event Labels: map[]"
+	actual = eventWithoutLabels.ToString()
+	if actual != expectedPrefix {
+		t.Errorf("Expected ToString output to be %s, got %s", expectedPrefix, actual)
+	}
+
+	// Test with empty labels
+	//
+	eventWithEmptyLabels := audit.NewEvent(
+		audit.LEVEL_ERROR,
+		"ErrorGroup",
+		"ERROR_TOPIC",
+		"Error occurred",
+		map[string]string{},
+	)
+
+	expectedPrefix = "[" + eventWithEmptyLabels.Timestamp.Format(time.RFC3339) + "] [ERROR] [ErrorGroup] [ERROR_TOPIC] Error occurred Labels: map[]"
+	actual = eventWithEmptyLabels.ToString()
+	if actual != expectedPrefix {
+		t.Errorf("Expected ToString output to be %s, got %s", expectedPrefix, actual)
 	}
 }
